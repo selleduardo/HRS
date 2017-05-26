@@ -3,15 +3,8 @@
 """
 @author: Eduardo
 22 de Maio de 2017
-Construindo um file chooser
+HyperRayleigh Scattering Analysis
 """
-
-# import matplotlib
-# matplotlib.use('GTK3Agg')
-
-import gi
-gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib
 
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_gtk3agg import FigureCanvasGTK3Agg as FigureCanvas
@@ -23,6 +16,10 @@ import os
 from scipy.optimize import curve_fit
 # import string
 # import subprocess
+
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk
 
 
 class MyWindow(Gtk.Window):
@@ -42,7 +39,7 @@ class MyWindow(Gtk.Window):
         self.set_default_size(2000, 1000)
         self.set_position(Gtk.WindowPosition.CENTER)
 
-        self.lbEsc = Gtk.Label(label="Folder:")
+        self.lbEsc = Gtk.Label(label="Select file:")
 
         self.filepath = Gtk.Entry()
 
@@ -52,17 +49,41 @@ class MyWindow(Gtk.Window):
         self.btFile = Gtk.Button(label="Analyse Files")
         self.btFile.connect("clicked", self.seleciona)
 
-        self.buttonOK = Gtk.Button(label="Ok")
+        self.buttonOK = Gtk.Button(label="     Next    ")
         self.buttonOK.connect("clicked", self.proximo)
 
-        self.buttonQuit = Gtk.Button(label="Quit")
+        self.buttonQuit = Gtk.Button(label="Remove Last")
         self.buttonQuit.connect("clicked", self.quit)
+
+        self.btConcentra = Gtk.Button(label="Select Concentration File")
+        self.btConcentra.connect("clicked", self.EscolheConc)
+
+        self.listline = 0
+        self.liststore = Gtk.ListStore(str, str, float)
+        self.treeview = Gtk.TreeView(model=self.liststore)
+
+        self.amostra_text = Gtk.CellRendererText()
+        self.column_amostra = Gtk.TreeViewColumn("Sample",
+                                                 self.amostra_text, text=0)
+        self.treeview.append_column(self.column_amostra)
+
+        self.concentra_text = Gtk.CellRendererText()
+        self.column_concentra = Gtk.TreeViewColumn("Concentration",
+                                                   self.concentra_text, text=1)
+        self.treeview.append_column(self.column_concentra)
+
+        self.coef_text = Gtk.CellRendererText()
+        self.column_coef = Gtk.TreeViewColumn("Quadratic Coef.",
+                                              self.coef_text, text=2)
+        self.treeview.append_column(self.column_coef)
 
         self.bxchose = Gtk.HBox(spacing=6)
         self.boxgraph = Gtk.HBox(spacing=6)
         self.boxsubgraph = Gtk.VBox(spacing=6)
         self.boxV = Gtk.VBox(spacing=6)
         self.bxbutton = Gtk.HBox(spacing=6)
+        self.bxTodos = Gtk.HBox(spacing=6)
+        self.bxlist = Gtk.VBox(spacing=6)
 
         self.fg = plt.figure()
         self.ax = self.fg.add_subplot(111)
@@ -93,8 +114,8 @@ class MyWindow(Gtk.Window):
         ax4.set_title('Coef. Quadratico vs. Concentracao')
         self.cv4 = FigureCanvas(fg4)
 
-        self.bxbutton.pack_end(self.buttonOK, False, False, 0)
-        self.bxbutton.pack_end(self.buttonQuit, False, False, 0)
+        self.bxbutton.pack_end(self.buttonOK, True, True, 0)
+        self.bxbutton.pack_end(self.buttonQuit, True, True, 0)
 
         self.bxchose.pack_start(self.lbEsc, False, True, 0)
         self.bxchose.pack_start(self.filepath, True, True, 0)
@@ -109,9 +130,14 @@ class MyWindow(Gtk.Window):
 
         self.boxV.pack_start(self.bxchose, False, True, 0)
         self.boxV.pack_start(self.boxgraph, True, True, 0)
-        self.boxV.pack_start(self.bxbutton, False, False, 0)
 
-        self.add(self.boxV)
+        self.bxlist.pack_start(self.btConcentra, False, True, 0)
+        self.bxlist.pack_start(self.treeview, True, True, 0)
+        self.bxlist.pack_start(self.bxbutton, False, False, 0)
+
+        self.bxTodos.pack_start(self.boxV, True, True, 0)
+        self.bxTodos.pack_start(self.bxlist, False, True, 5)
+        self.add(self.bxTodos)
 
     def Parabola(self, x, a, b):
         return a*x**2 + b
@@ -130,6 +156,8 @@ class MyWindow(Gtk.Window):
         self.btBrowse.set_sensitive(True)
         self.btFile.set_sensitive(True)
 
+        self.liststore[self.listline][2] = self.p[0]
+        self.listline += 1
         print('Próximo')
 
     def quit(self, event):
@@ -137,15 +165,17 @@ class MyWindow(Gtk.Window):
         sys.exit()
 
     def seleciona(self, event):
-        self.set_title(self.filepath.get_text())
-        self.filepath.set_sensitive(False)
-        self.lbEsc.set_sensitive(False)
-        self.btBrowse.set_sensitive(False)
-        self.btFile.set_sensitive(False)
-
-        self.direc = self.filepath.get_text()
-        self.ax.cla()
-        self.plota()
+        if self.filepath.get_text() == "":
+            self.alertempty()
+        else:
+            self.set_title(self.filepath.get_text())
+            self.filepath.set_sensitive(False)
+            self.lbEsc.set_sensitive(False)
+            self.btBrowse.set_sensitive(False)
+            self.btFile.set_sensitive(False)
+            self.direc = self.filepath.get_text()
+            self.ax.cla()
+            self.plota()
 
     def EscolheAqv(self, event):
         dialog = Gtk.FileChooserDialog(
@@ -158,10 +188,32 @@ class MyWindow(Gtk.Window):
         filter_any.set_name("Signal files")
         filter_any.add_pattern("*s.dat")
         dialog.add_filter(filter_any)
-        
+
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
             self.filepath.set_text(dialog.get_filename())
+        elif response == Gtk.ResponseType.CANCEL:
+            print("Cancel clicked")
+
+        dialog.destroy()
+
+
+    def EscolheConc(self, event):
+        dialog = Gtk.FileChooserDialog(
+            "Select Concentration File", None, Gtk.FileChooserAction.OPEN, (
+                Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
+        dialog.set_transient_for(self)
+
+        response = dialog.run()
+        if response == Gtk.ResponseType.OK:
+            self.conc = open(dialog.get_filename(), 'r')
+            for line in self.conc:
+                (self.smp, self.phi) = line.split()
+                # self.phi = float(self.phi)
+                self.liststore.append([self.smp, self.phi, 0.0])
+                # self.liststore.append([
+                #     self.smp, format(self.phi, '.2e'), 0.0])
         elif response == Gtk.ResponseType.CANCEL:
             print("Cancel clicked")
 
@@ -172,20 +224,21 @@ class MyWindow(Gtk.Window):
         self.imax = np.searchsorted(self.ref[:self.IM]**2, xmax)
 
         try:
-            self.p, self.pcov = curve_fit(self.Afin, self.ref[self.imin:self.imax]**2, self.sgn[self.imin:self.imax, 0],
-                                          sigma=self.sgn[self.imin:self.imax, 1], absolute_sigma=True)
-
+            self.p, self.pcov = curve_fit(
+                self.Afin,
+                self.ref[self.imin:self.imax]**2,
+                self.sgn[self.imin:self.imax, 0],
+                sigma=self.sgn[self.imin:self.imax, 1],
+                absolute_sigma=True)
         except:
             print('intervalo')
-            
+
         self.x = np.arange(0, 2e-4, 1e-6)
         self.y = self.Afin(self.x, *self.p)
         # quad.append((p[0], np.sqrt(pcov[0, 0])))
 
         self.line2.set_data(self.x, self.y)
         self.fg.canvas.draw()
-
-
 
     def plota(self):
         print(self.filepath.get_text())
@@ -200,29 +253,29 @@ class MyWindow(Gtk.Window):
                                  useblit=True, rectprops=dict(
                                      alpha=0.7, facecolor='#aec7e8'))
 
-
         self.Imps = np.genfromtxt(self.filepath.get_text())
         self.Impr = np.genfromtxt(self.filepath.get_text()[:-5] + 'r.dat',
                                   skip_footer=1)
 
         self.sgn = np.column_stack((np.average(self.Imps, axis=1),
-                           np.std(self.Imps, axis=1)/np.sqrt(np.shape(self.Imps)[1])))
+                                    np.std(self.Imps, axis=1)/np.sqrt(
+                                        np.shape(self.Imps)[1])))
         self.ref = np.average(self.Impr, axis=1)
-        
-        
+
         self.ax.plot(self.Impr**2, self.Imps, 'o-', alpha=0.5)
         # self.line2.set_data(self.ref[0], self.ref[-1])
 
         self.IM = np.where(self.ref == max(self.ref))[0][0]
 
-        self.ax.errorbar(self.ref[:self.IM]**2, self.sgn[:self.IM, 0], yerr=self.sgn[:self.IM, 1],
-                         fmt='ok-')
+        self.ax.errorbar(self.ref[:self.IM]**2, self.sgn[:self.IM, 0],
+                         yerr=self.sgn[:self.IM, 1], fmt='ok-')
 
-        self.line2, = self.ax.plot(self.ref[:self.IM]**2, self.sgn[:self.IM, 0], 'r-', lw=2, zorder=10)
+        self.line2, = self.ax.plot(self.ref[:self.IM]**2,
+                                   self.sgn[:self.IM, 0], 'r-', lw=2, zorder=9)
         self.line2.set_data([], [])
 
         self.fg.canvas.draw()
-        
+
     def plotavarios(self):
         self.files = [file for file in sorted(os.listdir(
             self.filepath.get_text())) if file.endswith('s.dat')]
@@ -236,6 +289,14 @@ class MyWindow(Gtk.Window):
             self.ax.draw()
         # print(self.files)
 
+    def alertempty(self):
+        dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                   Gtk.ButtonsType.OK, "Empy filepath")
+        dialog.format_secondary_text(
+            "Please select a file to analyse")
+        dialog.run()
+
+        dialog.destroy()
 
 win = MyWindow()
 win.connect("delete-event", Gtk.main_quit)
