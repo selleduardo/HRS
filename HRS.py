@@ -54,7 +54,7 @@ class MyWindow(Gtk.Window):
         self.buttonOK.connect("clicked", self.proximo)
 
         self.buttonQuit = Gtk.Button(label="Remove Last")
-        self.buttonQuit.connect("clicked", self.quit)
+        self.buttonQuit.connect("clicked", self.removelast)
 
         self.btConcentra = Gtk.Button(label="Select Concentration File")
         self.btConcentra.connect("clicked", self.EscolheConc)
@@ -173,6 +173,11 @@ class MyWindow(Gtk.Window):
         print('Exit')
         sys.exit()
 
+    def removelast(self, event):
+        self.quad.pop()
+        self.listline -= 1
+        self.liststore[self.listline][2] = 0.0
+
     def seleciona(self, event):
         if self.filepath.get_text() == "":
             self.alertempty()
@@ -240,15 +245,16 @@ class MyWindow(Gtk.Window):
                 self.sgn[self.imin:self.imax, 0],
                 sigma=self.sgn[self.imin:self.imax, 1],
                 absolute_sigma=True)
+
+            self.x = np.arange(0, 2e-4, 1e-6)
+            self.y = self.Afin(self.x, *self.p)
+
+            self.line2.set_data(self.x, self.y)
+            self.fg.canvas.draw()
+
         except:
             print('intervalo')
 
-        self.x = np.arange(0, 2e-4, 1e-6)
-        self.y = self.Afin(self.x, *self.p)
-        # quad.append((p[0], np.sqrt(pcov[0, 0])))
-
-        self.line2.set_data(self.x, self.y)
-        self.fg.canvas.draw()
 
     def plota(self):
         print(self.filepath.get_text())
