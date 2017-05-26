@@ -54,11 +54,12 @@ class MyWindow(Gtk.Window):
         self.buttonOK.connect("clicked", self.proximo)
 
         self.buttonQuit = Gtk.Button(label="Remove Last")
-        self.buttonQuit.connect("clicked", self.quit)
+        self.buttonQuit.connect("clicked", self.removelast)
 
         self.btConcentra = Gtk.Button(label="Select Concentration File")
         self.btConcentra.connect("clicked", self.EscolheConc)
 
+        self.quad = []
         self.listline = 0
         self.liststore = Gtk.ListStore(str, str, float)
         self.treeview = Gtk.TreeView(model=self.liststore)
@@ -99,7 +100,6 @@ class MyWindow(Gtk.Window):
         self.cursor = Cursor(self.ax, useblit=True, horizOn=True,
                              color='#ff9896', lw=1.5, alpha=0.9)
 
-
         self.fg2 = plt.figure()
         self.ax2 = self.fg2.add_subplot(111)
         self.ax2.set_title('HRS Signal Todas')
@@ -110,10 +110,10 @@ class MyWindow(Gtk.Window):
 
         self.cv2 = FigureCanvas(self.fg2)
 
-        fg4 = plt.figure()
-        ax4 = fg4.add_subplot(111)
-        ax4.set_title('Coef. Quadratico vs. Concentracao')
-        self.cv4 = FigureCanvas(fg4)
+        self.fg4 = plt.figure()
+        self.ax4 = self.fg4.add_subplot(111)
+        self.ax4.set_title('Coef. Quadratico vs. Concentracao')
+        self.cv4 = FigureCanvas(self.fg4)
 
         self.bxbutton.pack_end(self.buttonOK, True, True, 0)
         self.bxbutton.pack_end(self.buttonQuit, True, True, 0)
@@ -158,12 +158,25 @@ class MyWindow(Gtk.Window):
         self.btFile.set_sensitive(True)
 
         self.liststore[self.listline][2] = self.p[0]
+        self.quad.append((float(self.liststore[self.listline][1]),
+                          self.liststore[self.listline][2]))
+
+        self.a = float(self.liststore[self.listline][1])
+
+        # print(self.p[0])
+        self.ax4.plot(self.a, self.p[0], 'ok')
+
+        self.fg4.canvas.draw()
         self.listline += 1
-        print('Próximo')
 
     def quit(self, event):
         print('Exit')
         sys.exit()
+
+    def removelast(self, event):
+        self.quad.pop()
+        self.listline -= 1
+        self.liststore[self.listline][2] = 0.0
 
     def seleciona(self, event):
         if self.filepath.get_text() == "":
@@ -232,15 +245,16 @@ class MyWindow(Gtk.Window):
                 self.sgn[self.imin:self.imax, 0],
                 sigma=self.sgn[self.imin:self.imax, 1],
                 absolute_sigma=True)
+
+            self.x = np.arange(0, 2e-4, 1e-6)
+            self.y = self.Afin(self.x, *self.p)
+
+            self.line2.set_data(self.x, self.y)
+            self.fg.canvas.draw()
+
         except:
             print('intervalo')
 
-        self.x = np.arange(0, 2e-4, 1e-6)
-        self.y = self.Afin(self.x, *self.p)
-        # quad.append((p[0], np.sqrt(pcov[0, 0])))
-
-        self.line2.set_data(self.x, self.y)
-        self.fg.canvas.draw()
 
     def plota(self):
         print(self.filepath.get_text())
