@@ -47,6 +47,7 @@ class MyWindow(Gtk.Window):
         self.btBrowse.connect("clicked", self.EscolheAqv)
 
         self.btFile = Gtk.Button(label="Analyse Files")
+        self.btFile.set_sensitive(False)
         self.btFile.connect("clicked", self.seleciona)
 
         self.buttonOK = Gtk.Button(label="     Next    ")
@@ -197,16 +198,17 @@ class MyWindow(Gtk.Window):
 
         dialog.destroy()
 
-
     def EscolheConc(self, event):
         dialog = Gtk.FileChooserDialog(
             "Select Concentration File", None, Gtk.FileChooserAction.OPEN, (
                 Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
                 Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
-        dialog.set_transient_for(self)
 
+        dialog.set_transient_for(self)
         response = dialog.run()
+
         if response == Gtk.ResponseType.OK:
+            self.btFile.set_sensitive(True)
             self.conc = open(dialog.get_filename(), 'r')
             for line in self.conc:
                 (self.smp, self.phi) = line.split()
