@@ -255,7 +255,6 @@ class MyWindow(Gtk.Window):
         except:
             print('intervalo')
 
-
     def plota(self):
         print(self.filepath.get_text())
 
@@ -313,6 +312,7 @@ class MyWindow(Gtk.Window):
         dialog.run()
 
         dialog.destroy()
+
 
 win = MyWindow()
 win.connect("delete-event", Gtk.main_quit)
