@@ -59,6 +59,10 @@ class MyWindow(Gtk.Window):
         self.btConcentra = Gtk.Button(label="Select Concentration File")
         self.btConcentra.connect("clicked", self.EscolheConc)
 
+        self.btSalva = Gtk.Button(label="Save")
+        self.btSalva.set_sensitive(False)
+        self.btSalva.connect("clicked", self.Salva)
+
         self.quad = []
         self.listline = 0
         self.liststore = Gtk.ListStore(str, str, float)
@@ -105,7 +109,7 @@ class MyWindow(Gtk.Window):
         self.ax2.set_title('HRS Signal Todas')
         self.ax2.set_xlabel('$I^2(\omega)$')
         self.ax2.set_ylabel('$I(2\omega)$')
-
+        self.line2, = self.ax2.plot([], [], 'ok')
         self.ax2.ticklabel_format(style='sci', scilimits=(-2, 2), axis='both')
 
         self.cv2 = FigureCanvas(self.fg2)
@@ -113,6 +117,8 @@ class MyWindow(Gtk.Window):
         self.fg4 = plt.figure()
         self.ax4 = self.fg4.add_subplot(111)
         self.ax4.set_title('Coef. Quadratico vs. Concentracao')
+        self.line4, = self.ax4.plot([], [], 'ok')
+        # self.line4.set_data([], [])
         self.cv4 = FigureCanvas(self.fg4)
 
         self.bxbutton.pack_end(self.buttonOK, True, True, 0)
@@ -135,6 +141,7 @@ class MyWindow(Gtk.Window):
         self.bxlist.pack_start(self.btConcentra, False, True, 0)
         self.bxlist.pack_start(self.treeview, True, True, 0)
         self.bxlist.pack_start(self.bxbutton, False, False, 0)
+        self.bxlist.pack_end(self.btSalva, False, True, 0)
 
         self.bxTodos.pack_start(self.boxV, True, True, 0)
         self.bxTodos.pack_start(self.bxlist, False, True, 5)
@@ -161,12 +168,11 @@ class MyWindow(Gtk.Window):
         self.quad.append((float(self.liststore[self.listline][1]),
                           self.liststore[self.listline][2]))
 
-        self.a = float(self.liststore[self.listline][1])
+        # self.a = float(self.liststore[self.listline][1])
 
-        # print(self.p[0])
-        self.ax4.plot(self.a, self.p[0], 'ok')
+        # self.ax4.plot(self.a, self.p[0], 'ok')
 
-        self.fg4.canvas.draw()
+        # self.fg4.canvas.draw()
         self.listline += 1
 
     def quit(self, event):
@@ -222,6 +228,7 @@ class MyWindow(Gtk.Window):
 
         if response == Gtk.ResponseType.OK:
             self.btFile.set_sensitive(True)
+            self.btSalva.set_sensitive(True)
             self.conc = open(dialog.get_filename(), 'r')
             for line in self.conc:
                 (self.smp, self.phi) = line.split()
@@ -238,6 +245,9 @@ class MyWindow(Gtk.Window):
         self.imin = np.searchsorted(self.ref[:self.IM]**2, xmin)
         self.imax = np.searchsorted(self.ref[:self.IM]**2, xmax)
 
+        self.tempdata = []
+        print(self.quad)
+
         try:
             self.p, self.pcov = curve_fit(
                 self.Afin,
@@ -249,8 +259,29 @@ class MyWindow(Gtk.Window):
             self.x = np.arange(0, 2e-4, 1e-6)
             self.y = self.Afin(self.x, *self.p)
 
-            self.line2.set_data(self.x, self.y)
+            self.line.set_data(self.x, self.y)
             self.fg.canvas.draw()
+
+            self.line4.set_data([], [])
+            self.fg4.canvas.draw()
+
+            for linha in self.quad:
+                self.tempdata.append(linha)
+
+            self.tempdata.append((float(
+                self.liststore[self.listline][1]), self.p[0]))
+            self.tempdata = np.array(self.tempdata)
+
+            print(self.tempdata)
+
+            self.line4.set_data(self.tempdata[:, 0], self.tempdata[:, 1])
+
+            # recompute the ax.dataLim
+            self.ax4.relim()
+            # update ax.viewLim using the new dataLim
+            self.ax4.autoscale_view()
+
+            self.fg4.canvas.draw()
 
         except:
             print('intervalo')
@@ -278,16 +309,16 @@ class MyWindow(Gtk.Window):
         self.ref = np.average(self.Impr, axis=1)
 
         self.ax.plot(self.Impr**2, self.Imps, 'o-', alpha=0.5)
-        # self.line2.set_data(self.ref[0], self.ref[-1])
 
         self.IM = np.where(self.ref == max(self.ref))[0][0]
 
         self.ax.errorbar(self.ref[:self.IM]**2, self.sgn[:self.IM, 0],
                          yerr=self.sgn[:self.IM, 1], fmt='ok-')
 
-        self.line2, = self.ax.plot(self.ref[:self.IM]**2,
-                                   self.sgn[:self.IM, 0], 'r-', lw=2, zorder=9)
-        self.line2.set_data([], [])
+        self.line, = self.ax.plot(self.ref[:self.IM]**2,
+                                  self.sgn[:self.IM, 0], 'r-', lw=2,
+                                  zorder=9)
+        self.line.set_data([], [])
 
         self.fg.canvas.draw()
 
@@ -300,9 +331,9 @@ class MyWindow(Gtk.Window):
             dados = np.genfromtxt(self.filepath.get_text() +
                                   '/' + aqv)
 
-            self.line2, = self.ax.plot(dados)
+            self.line, = self.ax.plot(dados)
             self.ax.draw()
-        # print(self.files)
+            # print(self.files)
 
     def alertempty(self):
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
@@ -313,6 +344,8 @@ class MyWindow(Gtk.Window):
 
         dialog.destroy()
 
+    def Salva(self):
+        print('salva')
 
 win = MyWindow()
 win.connect("delete-event", Gtk.main_quit)
