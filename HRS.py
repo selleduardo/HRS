@@ -268,8 +268,10 @@ class MyWindow(Gtk.Window):
                                        str(self.phi),
                                        0.0,
                                        self.A532])
-        # except:
-        #     self.alertconc()
+
+        else:
+            self.alertconcabs()
+
         
     def onselect(self, xmin, xmax):
         self.imin = np.searchsorted(self.ref[:self.IM]**2, xmin)
@@ -285,7 +287,7 @@ class MyWindow(Gtk.Window):
                 sigma=self.sgn[self.imin:self.imax, 1],
                 absolute_sigma=True)
 
-            self.x = np.arange(0, 2e-4, 1e-6)
+            self.x = np.arange(0, 1.05*max(self.ref)**2, max(self.ref)**2/11)
             self.y = self.Afin(self.x, *self.p)
 
             self.line.set_data(self.x, self.y)
@@ -329,6 +331,9 @@ class MyWindow(Gtk.Window):
                                      alpha=0.7, facecolor='#aec7e8'))
 
         self.Imps = np.genfromtxt(self.filepath.get_text())
+
+        self.Imps = (2*self.Imps)/(10**(-self.A532*0.5) + 10**(-self.A532*1.5))
+
         self.Impr = np.genfromtxt(self.filepath.get_text()[:-5] + 'r.dat',
                                   skip_footer=1)
 
@@ -377,7 +382,16 @@ class MyWindow(Gtk.Window):
         dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
                                    Gtk.ButtonsType.OK, "Unable to import file")
         dialog.format_secondary_text(
-            "Please check if the file has two columns: sample, concentration")
+            "Please check if the concentration file has columns: (sample, concentration) and absorbption file (sample, A532nm)")
+        dialog.run()
+
+        dialog.destroy()
+
+    def alertconcabs(self):
+        dialog = Gtk.MessageDialog(self, 0, Gtk.MessageType.INFO,
+                                   Gtk.ButtonsType.OK, "Unable to import files")
+        dialog.format_secondary_text(
+            "Please check if concentration and absorption files have the same number of rows")
         dialog.run()
 
         dialog.destroy()
