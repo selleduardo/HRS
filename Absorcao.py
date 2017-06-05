@@ -1,4 +1,4 @@
-#/usr/bin/env python
+# /usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 @author: Eduardo
@@ -29,11 +29,12 @@ class MyWindow(Gtk.Window):
 
         # self.hb = Gtk.HeaderBar()
         # self.hb.set_show_close_button(True)
-        # self.hb.props.title = "HRS Analysis"
+        # self.hb.props.title = "Linear Absorption Analysis"
         # self.set_titlebar(self.hb)
 
-        self.set_title("HRS Analysis")
-        self.set_wmclass("HRS Analysis", "HRS Analysis")
+        self.set_title("Linear Absorption Analysis")
+        self.set_wmclass("Linear Absorption Analysis",
+                         "Linear Absorption Analysis")
 
         self.set_border_width(10)
         self.set_default_size(2000, 1000)
@@ -53,16 +54,19 @@ class MyWindow(Gtk.Window):
         self.buttonOK = Gtk.Button(label="     Next    ")
         self.buttonOK.connect("clicked", self.proximo)
 
+        self.btSkip = Gtk.Button(label="     Skip    ")
+        self.btSkip.connect("clicked", self.skip)
+
         self.buttonQuit = Gtk.Button(label="Remove Last")
         self.buttonQuit.connect("clicked", self.removelast)
 
-        self.btConcentra = Gtk.Button(label="Select Concentration/Absorption File")
+        self.btConcentra = Gtk.Button(label="Select Concentration File")
         self.btConcentra.connect("clicked", self.EscolheConc)
 
         self.btSalva = Gtk.Button(label="Save")
         self.btSalva.connect("clicked", self.Salva)
 
-        self.liststore = Gtk.ListStore(str, str, float, float)
+        self.liststore = Gtk.ListStore(str, str, float)
         self.treeview = Gtk.TreeView(model=self.liststore)
 
         self.sel = self.treeview.get_selection()
@@ -78,14 +82,9 @@ class MyWindow(Gtk.Window):
                                                    self.concentra_text, text=1)
         self.treeview.append_column(self.column_concentra)
 
-        self.coef_text = Gtk.CellRendererText()
-        self.column_coef = Gtk.TreeViewColumn("Quadratic Coef.",
-                                              self.coef_text, text=2)
-        self.treeview.append_column(self.column_coef)
-
         self.abs_text = Gtk.CellRendererText()
-        self.column_abs = Gtk.TreeViewColumn("A (532)",
-                                              self.abs_text, text=3)
+        self.column_abs = Gtk.TreeViewColumn("Abs (532)",
+                                             self.abs_text, text=2)
         self.treeview.append_column(self.column_abs)
 
         self.bxchose = Gtk.HBox(spacing=6)
@@ -99,11 +98,9 @@ class MyWindow(Gtk.Window):
         self.fg = plt.figure()
         self.ax = self.fg.add_subplot(111)
 
-        self.ax.set_title('HRS Signal')
-        self.ax.set_xlabel('$I^2(\omega)$')
-        self.ax.set_ylabel('$I(2\omega)$')
-
-        self.ax.ticklabel_format(style='sci', scilimits=(-2, 2), axis='both')
+        self.ax.set_title('Absorption Spectrum')
+        self.ax.set_xlabel('$\lambda$ (nm)')
+        self.ax.set_ylabel('A (O.D)')
 
         self.cv1 = FigureCanvas(self.fg)
         # self.cursor = Cursor(self.ax, useblit=True, horizOn=True,
@@ -111,22 +108,24 @@ class MyWindow(Gtk.Window):
 
         self.fg2 = plt.figure()
         self.ax2 = self.fg2.add_subplot(111)
-        self.ax2.set_title('HRS Signal Todas')
-        self.ax2.set_xlabel('$I^2(\omega)$')
-        self.ax2.set_ylabel('$I(2\omega)$')
-        self.line2, = self.ax2.plot([], [], 'o')
-        self.ax2.ticklabel_format(style='sci', scilimits=(-2, 2), axis='both')
+        self.ax2.set_title('Absorption Todas')
+        self.ax2.set_xlabel('$\lambda$ (nm)')
+        self.ax2.set_ylabel('A (O.D)')
+
+        self.line2, = self.ax2.plot([], [])
+        # self.ax2.ticklabel_format(style='sci', scilimits=(-2, 2), axis='both')
 
         self.cv2 = FigureCanvas(self.fg2)
 
         self.fg4 = plt.figure()
         self.ax4 = self.fg4.add_subplot(111)
-        self.ax4.set_title('Coef. Quadratico vs. Concentracao')
+        self.ax4.set_title('Beer-Lambert Law')
+
         self.line4, = self.ax4.plot([], [], 'ok')
-        # self.line4.set_data([], [])
         self.cv4 = FigureCanvas(self.fg4)
 
         self.bxbutton.pack_end(self.buttonOK, True, True, 0)
+        self.bxbutton.pack_end(self.btSkip, True, True, 0)
         self.bxbutton.pack_end(self.buttonQuit, True, True, 0)
 
         self.bxchose.pack_start(self.lbEsc, False, True, 0)
@@ -152,31 +151,23 @@ class MyWindow(Gtk.Window):
         self.bxTodos.pack_start(self.bxlist, False, True, 5)
         self.add(self.bxTodos)
 
-    def Parabola(self, x, a, b):
-        return a*x**2 + b
-
-    def Afin(self, x, a, b):
-        return a*x + b
-
     def proximo(self, event):
-        self.ax2.errorbar(self.ref[:self.IM]**2, self.sgn[:self.IM, 0],
-                          yerr=self.sgn[:self.IM, 1], fmt='o')
-        self.ax2.plot(self.x, self.y, 'r-', lw=2)
-        self.fg2.canvas.draw()
 
+        self.ax2.plot(self.spect[:, 0], self.corrspect)
+        self.fg2.canvas.draw()
+        
         self.filepath.set_sensitive(True)
         self.lbEsc.set_sensitive(True)
         self.btBrowse.set_sensitive(True)
         self.btFile.set_sensitive(True)
 
-        self.liststore[self.listline][2] = self.p[0]
+        self.liststore[self.listline][2] = self.a532
         self.quad.append((
             float(self.liststore[self.listline][1]),
             self.liststore[self.listline][2],
             np.sqrt(self.pcov[0, 0])))
 
         self.listline += 1
-        # self.treeview.set_cursor(self.listline)
 
     def quit(self, event):
         print('Exit')
@@ -186,6 +177,11 @@ class MyWindow(Gtk.Window):
         self.quad.pop()
         self.listline -= 1
         self.liststore[self.listline][2] = 0.0
+
+        self.filepath.set_sensitive(True)
+        self.lbEsc.set_sensitive(True)
+        self.btBrowse.set_sensitive(True)
+        self.btFile.set_sensitive(True)
 
     def seleciona(self, event):
         if self.filepath.get_text() == "":
@@ -206,11 +202,6 @@ class MyWindow(Gtk.Window):
                 Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
                 Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
         dialog.set_transient_for(self)
-
-        filter_any = Gtk.FileFilter()
-        filter_any.set_name("Signal files")
-        filter_any.add_pattern("*s.dat")
-        dialog.add_filter(filter_any)
 
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
@@ -235,61 +226,48 @@ class MyWindow(Gtk.Window):
             self.quad = []
             self.listline = 0
 
-            self.conc = np.genfromtxt(dialog.get_filename(), dtype=None)
+            self.conc = open(dialog.get_filename(), 'r')
+
+            try:
+                for line in self.conc:
+                    (self.smp, self.phi) = line.split()
+                    # self.phi = float(self.phi)
+                    self.liststore.append([self.smp, self.phi, 0.0])
+                    # self.liststore.append([
+                    #     self.smp, format(self.phi, '.2e'), 0.0])
+            except:
+                self.alertconc()
 
         elif response == Gtk.ResponseType.CANCEL:
             print("Cancel clicked")
 
-        # self.treeview.set_cursor(self.listline)
         dialog.destroy()
 
-        dialog2 = Gtk.FileChooserDialog(
-            "Select Absorption File", None, Gtk.FileChooserAction.OPEN, (
-                Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-                Gtk.STOCK_OPEN, Gtk.ResponseType.OK))
-
-        dialog2.set_transient_for(self)
-        response2 = dialog2.run()
-
-        if response2 == Gtk.ResponseType.OK:
-            self.Abs = np.genfromtxt(dialog2.get_filename(), dtype=float)
-
-        elif response2 == Gtk.ResponseType.CANCEL:
-            print("Cancel clicked")
-
-        dialog2.destroy()
-
-        if len(self.conc) == len(self.Abs):
-            for i in range(0, len(self.conc)):
-                (self.smp, self.phi) = self.conc[i]
-                self.A532 = self.Abs[i][1]
-
-                self.liststore.append([str(self.smp),
-                                       str(self.phi),
-                                       0.0,
-                                       self.A532])
-        # except:
-        #     self.alertconc()
-        
     def onselect(self, xmin, xmax):
-        self.imin = np.searchsorted(self.ref[:self.IM]**2, xmin)
-        self.imax = np.searchsorted(self.ref[:self.IM]**2, xmax)
+        self.imin = np.searchsorted(self.spect[:, 0], xmin)
+        self.imax = np.searchsorted(self.spect[:, 0], xmax)
 
+        self.i532 = np.searchsorted(self.spect[:, 0], 532)
         self.tempdata = []
 
         try:
+            self.param_bounds=(0, np.inf)
             self.p, self.pcov = curve_fit(
-                self.Afin,
-                self.ref[self.imin:self.imax]**2,
-                self.sgn[self.imin:self.imax, 0],
-                sigma=self.sgn[self.imin:self.imax, 1],
-                absolute_sigma=True)
+                self.Baseline,
+                self.spect[self.imin:self.imax, 0],
+                self.spect[self.imin:self.imax, 1])
 
-            self.x = np.arange(0, 2e-4, 1e-6)
-            self.y = self.Afin(self.x, *self.p)
+            self.x = np.arange(300, 1100, 10)
+            self.y = self.Baseline(self.x, *self.p)
 
             self.line.set_data(self.x, self.y)
             self.fg.canvas.draw()
+
+            self.corrspect = self.spect[:, 1] - self.Baseline(self.spect[:, 0],
+                                                          *self.p)
+            self.a532 = self.corrspect[self.i532]
+
+            self.plotaax2()
 
             self.line4.set_data([], [])
             self.fg4.canvas.draw()
@@ -297,8 +275,10 @@ class MyWindow(Gtk.Window):
             for linha in self.quad:
                 self.tempdata.append(linha)
 
-            self.tempdata.append((float(
-                self.liststore[self.listline][1]), self.p[0], np.sqrt(self.pcov[0, 0])))
+            self.tempdata.append((
+                float(self.liststore[self.listline][1]),
+                self.a532, np.sqrt(self.pcov[0, 0])))
+
             self.tempdata = np.array(self.tempdata)
 
             print(self.tempdata)
@@ -318,9 +298,11 @@ class MyWindow(Gtk.Window):
     def plota(self):
         print('Analising sample: %s' % self.filepath.get_text())
 
-        self.ax.set_title('HRS Signal')
-        self.ax.set_xlabel('$I^2(\omega)$')
-        self.ax.set_ylabel('$I(2\omega)$')
+        self.ax.set_title('Absorption Spectrum')
+        self.ax.set_xlabel('$\lambda$ (nm)')
+        self.ax.set_ylabel('A (O.D)')
+        self.ax.set_xlim(350, 950)
+        self.ax.set_ylim(-0.1, 3)
 
         self.ax.ticklabel_format(style='sci', scilimits=(-2, 2), axis='both')
 
@@ -328,28 +310,30 @@ class MyWindow(Gtk.Window):
                                  useblit=False, rectprops=dict(
                                      alpha=0.7, facecolor='#aec7e8'))
 
-        self.Imps = np.genfromtxt(self.filepath.get_text())
-        self.Impr = np.genfromtxt(self.filepath.get_text()[:-5] + 'r.dat',
-                                  skip_footer=1)
+        self.spect = np.genfromtxt(self.filepath.get_text(), skip_header=2)
 
-        self.sgn = np.column_stack((np.average(self.Imps, axis=1),
-                                    np.std(self.Imps, axis=1)/np.sqrt(
-                                        np.shape(self.Imps)[1])))
-        self.ref = np.average(self.Impr, axis=1)
+        self.ax.plot(self.spect[:, 0], self.spect[:, 1], '-', alpha=0.85)
 
-        self.ax.plot(self.Impr**2, self.Imps, 'o-', alpha=0.5)
+        self.line, = self.ax.plot(self.spect[:, 0], self.spect[:, 0],
+                                  lw=2, zorder=9)
 
-        self.IM = np.where(self.ref == max(self.ref))[0][0]
-
-        self.ax.errorbar(self.ref[:self.IM]**2, self.sgn[:self.IM, 0],
-                         yerr=self.sgn[:self.IM, 1], fmt='ok-')
-
-        self.line, = self.ax.plot(self.ref[:self.IM]**2,
-                                  self.sgn[:self.IM, 0], 'r-', lw=2,
-                                  zorder=9)
         self.line.set_data([], [])
+        # recompute the ax.dataLim
+        self.ax.relim()
+        # update ax.viewLim using the new dataLim
+        self.ax.autoscale_view()
 
         self.fg.canvas.draw()
+
+    def plotaax2(self):
+        self.line2.set_data(self.spect[:, 0], self.corrspect)
+        self.ax2.set_xlim(350, 950)
+        self.ax2.set_ylim(-0.1, 3)
+        # # recompute the ax.dataLim
+        # self.ax2.relim()
+        # # update ax.viewLim using the new dataLim
+        # self.ax2.autoscale_view()
+        self.fg2.canvas.draw()
 
     def plotavarios(self):
         self.files = [file for file in sorted(os.listdir(
@@ -393,7 +377,7 @@ class MyWindow(Gtk.Window):
                 Gtk.STOCK_SAVE, Gtk.ResponseType.OK))
 
         dialog.set_transient_for(self)
-        dialog.set_current_name(self.samplename + '.conc')
+        dialog.set_current_name(self.samplename + '.blb')
         dialog.set_do_overwrite_confirmation(True)
 
         response = dialog.run()
@@ -407,6 +391,21 @@ class MyWindow(Gtk.Window):
             print("Cancel clicked")
 
         dialog.destroy()
+
+    def skip(self, event):
+        self.listline += 1
+
+    def Scat(self, x, a):
+        return a/(x**4)
+
+    def Baseline(self, x, a):
+        return a
+
+    def Parabola(self, x, a, b):
+        return a*x**2 + b
+
+    def Afin(self, x, a, b):
+        return a*x + b
 
 
 win = MyWindow()
